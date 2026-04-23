@@ -2,34 +2,86 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [development, main]
   pull_request:
+    branches: [development, main]
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  ruby-tests:
+    name: Ruby tests (${{ matrix.ruby }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.1", "3.2", "3.3", "3.4"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Run Ruby contract tests
+        run: bundle exec rake test
+
+  native-build:
+    name: Native build and smoke test (${{ matrix.os }}, Ruby ${{ matrix.ruby }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        ruby: ["3.1", "3.2", "3.3", "3.4"]
-    runs-on: ${{ matrix.os }}
+        ruby: ["3.1", "3.4"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - uses: dtolnay/rust-toolchain@stable
-      - run: bundle exec rake test
 
-  package:
-    needs: test
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile native extension
+        run: bundle exec rake compile
+
+      - name: Run tests with native extension
+        run: bundle exec rake test
+        env:
+          MAGIKA_NATIVE_TEST: "1"
+
+  gem-build:
+    name: Build gem package
+    needs: [ruby-tests, native-build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
           bundler-cache: true
-      - uses: dtolnay/rust-toolchain@stable
-      - run: bundle exec rake native gem
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build native gem
+        run: bundle exec rake native gem
+
+      - name: Upload packaged gems
+        uses: actions/upload-artifact@v4
+        with:
+          name: gems
+          path: pkg/*.gem
+          if-no-files-found: error

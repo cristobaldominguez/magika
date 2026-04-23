@@ -38,9 +38,19 @@ The Ruby API reserves `:high_confidence`, `:medium_confidence`, and `:best_guess
 
 ## Development
 
+Local development can run the Ruby contract tests without compiling the native extension:
+
 ```sh
 bundle install
 bundle exec rake test
+```
+
+Native compilation and smoke tests are performed in GitHub Actions. To reproduce them locally, install Rust/Cargo and run:
+
+```sh
+bundle exec rake compile
+MAGIKA_NATIVE_TEST=1 bundle exec rake test
+bundle exec rake native gem
 ```
 
 Do not commit generated gems, compiled extensions, or local build output.
