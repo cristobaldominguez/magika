@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+ROOT = File.expand_path("..", __dir__)
+require_relative "../tools/release"
+
+options = {
+  check_branches: false,
+  output_file: ENV["GITHUB_OUTPUT"]
+}
+
+OptionParser.new do |parser|
+  parser.banner = "Usage: bin/validate-release --tag TAG [--check-branches]"
+
+  parser.on("--tag TAG", "Git tag to validate") { |value| options[:tag] = value }
+  parser.on("--check-branches", "Validate tag ancestry against origin/development or origin/main") do
+    options[:check_branches] = true
+  end
+  parser.on("--output FILE", "Write GitHub Actions outputs to FILE") { |value| options[:output_file] = value }
+end.parse!
+
+tag = options[:tag] || ENV["GITHUB_REF_NAME"]
+abort "Missing release tag. Pass --tag or set GITHUB_REF_NAME." if tag.nil? || tag.empty?
+
+begin
+  release = MagikaRelease.parse_tag(tag)
+rescue ArgumentError => error
+  abort error.message
+end
+
+version_file = File.join(ROOT, "lib", "magika", "version.rb")
+load version_file
+actual_version = Magika::VERSION.to_s
+
+begin
+  MagikaRelease.validate_version!(release, actual_version)
+rescue ArgumentError => error
+  abort error.message
+end
+
+version = release.version
+stable = release.stable?
+expected_branch = release.expected_branch
+
+if options[:check_branches]
+  tag_ref = "refs/tags/#{tag}^{}"
+  branch_ref = "origin/#{expected_branch}"
+  system("git", "rev-parse", "--verify", tag_ref, out: File::NULL, err: File::NULL) || abort("Tag #{tag.inspect} is not available locally.")
+  system("git", "rev-parse", "--verify", branch_ref, out: File::NULL, err: File::NULL) || abort("Branch #{branch_ref.inspect} is not available locally.")
+
+  unless system("git", "merge-base", "--is-ancestor", tag_ref, branch_ref)
+    abort "Invalid release branch: #{tag.inspect} must point to a commit reachable from #{branch_ref}."
+  end
+end
+
+outputs = {
+  "tag" => tag,
+  "version" => version,
+  "stable" => stable.to_s,
+  "prerelease" => (!stable).to_s,
+  "expected_branch" => expected_branch
+}
+
+if options[:output_file]
+  File.open(options[:output_file], "a") do |file|
+    outputs.each { |key, value| file.puts "#{key}=#{value}" }
+  end
+end
+
+puts "Release tag #{tag} is valid for magika #{version} from #{expected_branch}."

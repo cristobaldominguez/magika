@@ -1,0 +1,209 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate-release:
+    name: Validate release tag
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      stable: ${{ steps.validate.outputs.stable }}
+      prerelease: ${{ steps.validate.outputs.prerelease }}
+      expected_branch: ${{ steps.validate.outputs.expected_branch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch release branches and tags
+        run: git fetch --force origin main:refs/remotes/origin/main development:refs/remotes/origin/development --tags
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Validate tag, version, and branch policy
+        id: validate
+        run: bin/validate-release --tag "${GITHUB_REF_NAME}" --check-branches
+
+  ruby-tests:
+    name: Ruby tests (${{ matrix.ruby }})
+    needs: validate-release
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.2", "3.3", "3.4"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+
+      - name: Verify supported Ruby version
+        run: ruby -e 'required = Gem::Version.new("3.2.2"); current = Gem::Version.new(RUBY_VERSION); abort("Ruby " + RUBY_VERSION + " is below " + required.to_s) if current < required'
+
+      - name: Run Ruby contract tests
+        run: bundle exec rake test
+
+  native-gems:
+    name: Native gem (${{ matrix.platform }})
+    needs: validate-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: x86_64-linux
+            os: ubuntu-24.04
+          - platform: aarch64-linux
+            os: ubuntu-24.04-arm
+          - platform: x86_64-darwin
+            os: macos-15-intel
+          - platform: arm64-darwin
+            os: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Compile native extension
+        run: bundle exec rake compile
+
+      - name: Run tests with native extension
+        run: bundle exec rake test
+        env:
+          MAGIKA_NATIVE_TEST: "1"
+
+      - name: Build native gem
+        run: bundle exec rake native
+
+      - name: Upload native gem
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gem-${{ matrix.platform }}
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  source-gem:
+    name: Source gem
+    needs: validate-release
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Build source gem
+        run: bundle exec rake build
+
+      - name: Upload source gem
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-gem
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  publish:
+    name: Publish to RubyGems
+    needs: [validate-release, ruby-tests, native-gems, source-gem]
+    runs-on: ubuntu-24.04
+    environment: rubygems
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download gem artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          pattern: "*-gem*"
+          merge-multiple: true
+
+      - name: Collect release gems
+        run: |
+          mkdir -p pkg
+          find artifacts -maxdepth 2 -type f -name '*.gem' -print -exec cp {} pkg/ \;
+          ls -la pkg
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Verify release gem set
+        run: bin/verify-release-gems --version "${{ needs.validate-release.outputs.version }}"
+
+      - name: Configure RubyGems trusted publishing credentials
+        uses: rubygems/configure-rubygems-credentials@v1.0.0
+
+      - name: Push gems to RubyGems
+        run: |
+          set -euo pipefail
+          for gem in pkg/*.gem; do
+            gem push "$gem"
+          done
+
+      - name: Upload published gems
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-gems-${{ github.ref_name }}
+          path: pkg/*.gem
+          if-no-files-found: error
+
+  github-release:
+    name: Create GitHub Release
+    needs: [validate-release, publish]
+    if: needs.validate-release.outputs.stable == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download published gems
+        uses: actions/download-artifact@v5
+        with:
+          name: published-gems-${{ github.ref_name }}
+          path: pkg
+
+      - name: Create stable GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: magika ${{ needs.validate-release.outputs.version }}
+          files: pkg/*.gem
+          fail_on_unmatched_files: true

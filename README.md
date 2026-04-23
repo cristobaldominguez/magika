@@ -58,9 +58,20 @@ To reproduce the GitHub Actions native build locally, install Rust/Cargo and run
 ```sh
 bundle exec rake compile
 MAGIKA_NATIVE_TEST=1 bundle exec rake test
-bundle exec rake native gem
+bundle exec rake native
 ```
 
 The native build enables `ort`'s ONNX Runtime binary download/copy features so contributors do not need to install ONNX Runtime manually. `bundle exec rake compile` runs a preflight check for `cdn.pyke.io` and prints a Magika-specific error if ONNX Runtime cannot be downloaded. Advanced users can point to a custom ONNX Runtime build with `ORT_LIB_LOCATION`, or set `MAGIKA_SKIP_NETWORK_PREFLIGHT=1` when the runtime is already cached.
+
+## Release workflow
+
+Releases are intentional and tag-driven. Pushes to `development` or `main` never publish the gem by themselves. The full repository workflow is documented in [`workflow.md`](workflow.md). In short:
+
+1. Implement changes in a feature/fix branch and open a PR to `development`.
+2. Publish beta or RC versions from `development` with tags like `v0.2.0-beta.1` or `v0.2.0-rc.1`.
+3. Promote validated code with a PR from `development` to `main`.
+4. Publish stable versions from `main` with tags like `v0.2.0`.
+
+The release workflow validates the tag, checks that `Magika::VERSION` matches it exactly, runs tests/builds, builds source and native gems, and publishes to RubyGems through Trusted Publishing. Stable tags also create a GitHub Release.
 
 Do not commit generated gems, compiled extensions, or local build output.

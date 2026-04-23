@@ -1,0 +1,53 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+require "rubygems/package"
+
+options = {
+  gem_dir: "pkg",
+  expected_platforms: %w[ruby x86_64-linux aarch64-linux x86_64-darwin arm64-darwin]
+}
+
+OptionParser.new do |parser|
+  parser.banner = "Usage: bin/verify-release-gems --version VERSION [--gem-dir DIR]"
+  parser.on("--version VERSION", "Expected gem version") { |value| options[:version] = value }
+  parser.on("--gem-dir DIR", "Directory containing .gem files") { |value| options[:gem_dir] = value }
+  parser.on("--platforms LIST", "Comma-separated expected platforms") do |value|
+    options[:expected_platforms] = value.split(",").map(&:strip).reject(&:empty?)
+  end
+end.parse!
+
+abort "Missing --version." if options[:version].nil? || options[:version].empty?
+
+gem_files = Dir[File.join(options[:gem_dir], "*.gem")].sort
+abort "No .gem files found in #{options[:gem_dir].inspect}." if gem_files.empty?
+
+seen_platforms = {}
+errors = []
+
+gem_files.each do |path|
+  spec = Gem::Package.new(path).spec
+  errors << "#{path}: expected gem name magika, got #{spec.name}" unless spec.name == "magika"
+  errors << "#{path}: expected version #{options[:version]}, got #{spec.version}" unless spec.version.to_s == options[:version]
+
+  platform = spec.platform.to_s
+  errors << "#{path}: duplicate platform #{platform}" if seen_platforms.key?(platform)
+  seen_platforms[platform] = path
+end
+
+missing = options[:expected_platforms] - seen_platforms.keys
+unexpected = seen_platforms.keys - options[:expected_platforms]
+errors << "Missing gem platforms: #{missing.join(', ')}" unless missing.empty?
+errors << "Unexpected gem platforms: #{unexpected.join(', ')}" unless unexpected.empty?
+
+unless errors.empty?
+  warn "Release gem verification failed:"
+  errors.each { |error| warn "- #{error}" }
+  abort
+end
+
+puts "Verified #{gem_files.length} release gems for magika #{options[:version]}:"
+options[:expected_platforms].each do |platform|
+  puts "- #{platform}: #{seen_platforms.fetch(platform)}"
+end
