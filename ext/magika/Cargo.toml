@@ -1,0 +1,13 @@
+[package]
+name = "magika"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+magika-rust = { package = "magika", version = "1.0" }
+magnus = { version = "0.7", features = ["rb-sys", "old-api"] }
+once_cell = "1.20"
