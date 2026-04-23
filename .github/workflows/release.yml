@@ -102,7 +102,7 @@ jobs:
           MAGIKA_NATIVE_TEST: "1"
 
       - name: Build native gem
-        run: bundle exec rake native
+        run: bundle exec rake native gem
 
       - name: Upload native gem
         uses: actions/upload-artifact@v4
