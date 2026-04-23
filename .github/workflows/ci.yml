@@ -28,7 +28,8 @@ jobs:
           bundler-cache: true
 
       - name: Verify supported Ruby version
-        run: ruby -e 'required = Gem::Version.new("3.2.2"); current = Gem::Version.new(RUBY_VERSION); abort "Ruby #{RUBY_VERSION} is below #{required}" if current < required'
+        run: |
+          ruby -e 'required = Gem::Version.new("3.2.2"); current = Gem::Version.new(RUBY_VERSION); abort("Ruby " + RUBY_VERSION + " is below " + required.to_s) if current < required'
 
       - name: Run Ruby contract tests
         run: bundle exec rake test
@@ -57,7 +58,8 @@ jobs:
           bundler-cache: true
 
       - name: Verify supported Ruby version
-        run: ruby -e 'required = Gem::Version.new("3.2.2"); current = Gem::Version.new(RUBY_VERSION); abort "Ruby #{RUBY_VERSION} is below #{required}" if current < required'
+        run: |
+          ruby -e 'required = Gem::Version.new("3.2.2"); current = Gem::Version.new(RUBY_VERSION); abort("Ruby " + RUBY_VERSION + " is below " + required.to_s) if current < required'
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable

@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.name = "magika"
   spec.version = Magika::VERSION
   spec.authors = ["Cristobal Dominguez"]
-  spec.email = ["TODO@example.com"]
+  spec.email = ["cristobald@gmail.com"]
 
   spec.summary = "Ruby bindings for Google's Magika file type detection library"
   spec.description = "A Ruby-first native binding for Magika, Google's AI-powered file content type detection library."

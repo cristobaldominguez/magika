@@ -9,4 +9,3 @@
 /lib/**/*.so
 /lib/**/*.dylib
 *.gem
-Gemfile.lock
