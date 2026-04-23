@@ -61,6 +61,6 @@ MAGIKA_NATIVE_TEST=1 bundle exec rake test
 bundle exec rake native gem
 ```
 
-The native build enables `ort`'s ONNX Runtime binary download/copy features so contributors do not need to install ONNX Runtime manually. Advanced users can still point to a custom ONNX Runtime build with `ORT_LIB_LOCATION`; see the `ort` linking documentation if you need that path.
+The native build enables `ort`'s ONNX Runtime binary download/copy features so contributors do not need to install ONNX Runtime manually. `bundle exec rake compile` runs a preflight check for `cdn.pyke.io` and prints a Magika-specific error if ONNX Runtime cannot be downloaded. Advanced users can point to a custom ONNX Runtime build with `ORT_LIB_LOCATION`, or set `MAGIKA_SKIP_NETWORK_PREFLIGHT=1` when the runtime is already cached.
 
 Do not commit generated gems, compiled extensions, or local build output.
