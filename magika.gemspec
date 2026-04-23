@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "A Ruby-first native binding for Magika, Google's AI-powered file content type detection library."
   spec.homepage = "https://github.com/cristobaldominguez/magika"
   spec.license = "Apache-2.0"
-  spec.required_ruby_version = ">= 3.1", "< 4.0"
+  spec.required_ruby_version = ">= 3.2.2", "< 4.0"
 
   spec.metadata = {
     "homepage_uri" => spec.homepage,

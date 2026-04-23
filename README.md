@@ -8,7 +8,7 @@ Ruby bindings for [Google Magika](https://github.com/google/magika), an AI-power
 gem "magika"
 ```
 
-The published gem is intended to ship precompiled native extensions for macOS and Linux. Development builds require Ruby 3.1-3.4, Bundler, and Rust/Cargo. Ruby 4 is not supported yet because the current native dependency chain does not compile against Ruby 4 headers.
+The published gem is intended to ship precompiled native extensions for macOS and Linux. Development builds require Ruby 3.2.2-3.4, Bundler, and Rust/Cargo. Ruby 4 is not supported yet because the current native dependency chain does not compile against Ruby 4 headers.
 
 ## Usage
 
@@ -45,7 +45,7 @@ mise install
 bundle install
 ```
 
-Without mise, install Ruby 3.4 with your preferred Ruby manager and make sure `ruby -v` reports Ruby 3.x before running Bundler. Ruby 4 is intentionally excluded until Magnus/rb-sys support it cleanly.
+Without mise, install Ruby 3.4 with your preferred Ruby manager and make sure `ruby -v` reports Ruby >= 3.2.2 and < 4.0 before running Bundler. Ruby 4 is intentionally excluded until Magnus/rb-sys support it cleanly.
 
 Run Ruby contract tests without compiling the native extension:
 
