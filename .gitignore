@@ -1,0 +1,11 @@
+/.bundle/
+/.yardoc/
+/coverage/
+/pkg/
+/tmp/
+/ext/**/target/
+/lib/**/*.bundle
+/lib/**/*.so
+/lib/**/*.dylib
+*.gem
+Gemfile.lock
