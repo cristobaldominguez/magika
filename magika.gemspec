@@ -24,6 +24,7 @@ Gem::Specification.new do |spec|
   spec.files = Dir.glob(%w[
     lib/**/*.rb
     ext/**/*.{rs,toml,rb}
+    Cargo.toml
     README.md
     LICENSE.txt
     CHANGELOG.md
