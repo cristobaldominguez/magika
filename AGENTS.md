@@ -40,6 +40,11 @@ Add tests with every behavior change. Tests should be fast, isolated, and readab
 
 If coverage tooling is introduced, document the minimum threshold and the command used to generate reports.
 
+
+## Branch Workflow
+
+Use `development` as the integration branch for all new work. Create feature or fix branches from `development`, open pull requests back into `development`, and only promote to `main` through an explicit release or stabilization step. Do not commit directly to `main`.
+
 ## Commit & Pull Request Guidelines
 
 Git history is not available in this checkout, so use Conventional Commits by default:
